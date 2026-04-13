@@ -1,0 +1,78 @@
+name: 1.Build MiniOS LXFce Trixie Noble
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 600
+    steps:
+      - name: Get Current Date
+        id: date
+        run: echo "DATE=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+        
+      - name: Free Disk Space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/share/boost
+          sudo docker image prune -a -f
+      
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y 7zip curl git wget ca-certificates binutils debootstrap \
+            squashfs-tools xz-utils lz4 zstd xorriso mtools rsync \
+            qemu-user-static binfmt-support \
+            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu build-essential
+
+      - name: Download and Decompress Source
+        run: |
+          wget -q https://github.com/1compk/minios/releases/download/live/zMinios.Skyline.Build.2026.tar.xz
+          tar -xf zMinios.Skyline.Build.2026.tar.xz
+
+      - name: Build Trixie
+        working-directory: zMinios.Skyline.Build.2026
+        run: sudo sh trixie.xfce.build.sh
+
+      - name: Upload MiniOS.Trixie.iSO
+        uses: actions/upload-artifact@v7
+        with:
+          name: MiniOS-Trixie-iSO-${{ steps.date.outputs.DATE }}
+          path: zMinios.Skyline.Build.2026/build/iso/*.iso
+          archive: false
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload MiniOS.Trixie.SB
+        uses: actions/upload-artifact@v7
+        with:
+          name: MiniOS-Trixie-SB-${{ steps.date.outputs.DATE }}
+          path: zMinios.Skyline.Build.2026/build/trixie-standard-amd64/image/minios/*.sb*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Clean Trixie to save space
+        run: sudo rm -rf zMinios.Skyline.Build.2026/build/*
+
+      - name: Build Noble
+        working-directory: zMinios.Skyline.Build.2026
+        run: sudo sh noble.xfce.build.sh
+
+      - name: Upload MiniOS.Noble.iSO
+        uses: actions/upload-artifact@v7
+        with:
+          name: MiniOS-Noble-iSO-${{ steps.date.outputs.DATE }}
+          path: zMinios.Skyline.Build.2026/build/iso/*.iso
+          archive: false
+          if-no-files-found: error
+          retention-days: 30
+          
+      - name: Upload MiniOS.Noble.SB
+        uses: actions/upload-artifact@v7
+        with:
+          name: MiniOS-Noble-SB-${{ steps.date.outputs.DATE }}
+          path: zMinios.Skyline.Build.2026/build/noble-standard-amd64/image/minios/*.sb*
+          if-no-files-found: error
+          retention-days: 30
